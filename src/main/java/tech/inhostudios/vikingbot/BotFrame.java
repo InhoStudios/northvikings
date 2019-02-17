@@ -3,8 +3,12 @@ package tech.inhostudios.vikingbot;
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDABuilder;
 import net.dv8tion.jda.core.entities.ChannelType;
+import net.dv8tion.jda.core.entities.Message;
+import net.dv8tion.jda.core.entities.MessageChannel;
+import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import tech.inhostudios.vikingbot.commands.Commands;
 
 import javax.security.auth.login.LoginException;
 import javax.swing.*;
@@ -37,6 +41,29 @@ public class BotFrame extends ListenerAdapter {
     public void onMessageReceived(MessageReceivedEvent event){
         // handle command
 
+        // message reception
+        MessageChannel msgCh = event.getChannel();
+        Message msg = event.getMessage();
+        User author = event.getAuthor();
+        String content = msg.getContentRaw();
+
+        // for measuring ping
+        long time = System.currentTimeMillis();
+
+        //checking for prefix
+        if(content.startsWith(Commands.prefix)){
+            String command = content.substring(Commands.prefix.length());
+            if(command.startsWith(Commands.ping)){
+                long ping = event.getJDA().getPing();
+                msgCh.sendMessage("```Pong! " + ping + "ms```").queue();
+            }
+            if(command.startsWith(Commands.help)){
+                msgCh.sendMessage("```Available Commands (using >): \n" +
+                        ">ping - Returns the current ping\n" +
+                        ">reminder [Message] - Adds a reminder to a list of reminders" +
+                        "```").queue();
+            }
+        }
 
         // printing messages
         String messages;
