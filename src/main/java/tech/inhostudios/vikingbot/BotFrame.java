@@ -8,12 +8,14 @@ import net.dv8tion.jda.core.entities.MessageChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import tech.inhostudios.vikingbot.commands.Reminder.Reminder;
 import tech.inhostudios.vikingbot.commands.Reminder.ReminderManager;
 import tech.inhostudios.vikingbot.commands.Commands;
 
 import javax.security.auth.login.LoginException;
 import javax.swing.*;
 import java.awt.*;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class BotFrame extends ListenerAdapter {
@@ -62,6 +64,7 @@ public class BotFrame extends ListenerAdapter {
             }
             if(command.startsWith(Commands.help)){
                 msgCh.sendMessage("```Available Commands (using >): \n" +
+                        ">" + Commands.forget + "[Index of reminder] - Removes the reminder from the list\n" +
                         ">" + Commands.ping + " - Returns the current ping\n" +
                         ">" + Commands.reminder + " [Message] - Adds a reminder to a list of reminders\n" +
                         ">" + Commands.reminders + " - Returns all the current reminders for the channel\n" +
@@ -70,11 +73,25 @@ public class BotFrame extends ListenerAdapter {
             if(command.startsWith(Commands.reminder)){
                 String reminder = command.substring(Commands.reminder.length());
                 if(!reminder.replaceAll(" ", "").equals("")){
-                    reminderManager.addReminder(reminder);
-                    msgCh.sendMessage("```Message Saved```").complete();
+                    Reminder curReminder = new Reminder(msgCh.getName(),reminder,author.getName());
+                    try {
+                        reminderManager.addReminder(curReminder);
+                        msgCh.sendMessage("```Message Saved```").complete();
+                    } catch (IOException e) {
+                        msgCh.sendMessage("```An error has occured```").complete();
+                        e.printStackTrace();
+                    }
                 } else {
                     msgCh.sendMessage("```Please add a full message to add it to the reminders```").complete();
                 }
+            }
+            if(command.equalsIgnoreCase(Commands.reminders)){
+                msgCh.sendMessage("```" + reminderManager.getRemindersAsString() + "```").complete();
+            }
+            if(command.startsWith(Commands.forget)){
+                String index = command.substring(Commands.forget.length());
+                String result = reminderManager.removeFromReminders(index);
+                msgCh.sendMessage("```" + result + "```").complete();
             }
         }
 
