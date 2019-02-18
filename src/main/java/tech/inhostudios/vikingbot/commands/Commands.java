@@ -7,7 +7,8 @@ public class Commands {
     public static final String ping = "ping";
     public static final String delete = "delete";
     public static final String help = "help";
-    public static final String reminder = "reminder";
+    public static final String reminder = "remindme ";
+    public static final String reminders = "reminders";
     public static final String messageAll = "messageAll";
 
 }

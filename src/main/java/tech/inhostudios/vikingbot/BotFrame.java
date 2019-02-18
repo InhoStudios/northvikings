@@ -8,6 +8,7 @@ import net.dv8tion.jda.core.entities.MessageChannel;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import tech.inhostudios.vikingbot.commands.Reminder.ReminderManager;
 import tech.inhostudios.vikingbot.commands.Commands;
 
 import javax.security.auth.login.LoginException;
@@ -21,6 +22,7 @@ public class BotFrame extends ListenerAdapter {
 
     private JFrame botFrame;
     private JDA botJda;
+    private ReminderManager reminderManager;
 
     private final int maxMessages = 30;
 
@@ -36,6 +38,7 @@ public class BotFrame extends ListenerAdapter {
         botJda = new JDABuilder(Token.token).build();
         botJda.addEventListener(this);
 
+        reminderManager = new ReminderManager();
     }
 
     public void onMessageReceived(MessageReceivedEvent event){
@@ -55,13 +58,23 @@ public class BotFrame extends ListenerAdapter {
             String command = content.substring(Commands.prefix.length());
             if(command.startsWith(Commands.ping)){
                 long ping = event.getJDA().getPing();
-                msgCh.sendMessage("```Pong! " + ping + "ms```").queue();
+                msgCh.sendMessage("```Pong! " + ping + "ms```").complete();
             }
             if(command.startsWith(Commands.help)){
                 msgCh.sendMessage("```Available Commands (using >): \n" +
-                        ">ping - Returns the current ping\n" +
-                        ">reminder [Message] - Adds a reminder to a list of reminders" +
-                        "```").queue();
+                        ">" + Commands.ping + " - Returns the current ping\n" +
+                        ">" + Commands.reminder + " [Message] - Adds a reminder to a list of reminders\n" +
+                        ">" + Commands.reminders + " - Returns all the current reminders for the channel\n" +
+                        "```").complete();
+            }
+            if(command.startsWith(Commands.reminder)){
+                String reminder = command.substring(Commands.reminder.length());
+                if(!reminder.replaceAll(" ", "").equals("")){
+                    reminderManager.addReminder(reminder);
+                    msgCh.sendMessage("```Message Saved```").complete();
+                } else {
+                    msgCh.sendMessage("```Please add a full message to add it to the reminders```").complete();
+                }
             }
         }
 
