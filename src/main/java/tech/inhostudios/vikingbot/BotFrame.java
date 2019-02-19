@@ -26,7 +26,7 @@ public class BotFrame extends ListenerAdapter {
     private JDA botJda;
     private ReminderManager reminderManager;
 
-    private final int maxMessages = 30;
+    private final int maxMessages = 75;
 
     public BotFrame(int width, int height, String title) throws LoginException {
         botFrame = new JFrame();
