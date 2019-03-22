@@ -16,6 +16,7 @@ import javax.security.auth.login.LoginException;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
 
 public class BotFrame extends ListenerAdapter {
@@ -26,6 +27,9 @@ public class BotFrame extends ListenerAdapter {
     private JDA botJda;
     private ReminderManager reminderManager;
 
+    private boolean waitingForDate = false;
+    private User curRemUser = null;
+    private Reminder curReminder = null;
     private final int maxMessages = 75;
 
     public BotFrame(int width, int height, String title) throws LoginException {
@@ -55,6 +59,24 @@ public class BotFrame extends ListenerAdapter {
         // for measuring ping
         long time = System.currentTimeMillis();
 
+        if(waitingForDate && author.equals(curRemUser)){
+            try {
+                curReminder.parseDate(content);
+                waitingForDate = false;
+                curRemUser = null;
+            } catch (ParseException e) {
+                e.printStackTrace();
+                msgCh.sendMessage("Date not set. Try again.");
+            }
+            try {
+                reminderManager.addReminder(curReminder);
+                msgCh.sendMessage("```Message Saved```").complete();
+            } catch (IOException e) {
+                msgCh.sendMessage("```An error has occured```").complete();
+                e.printStackTrace();
+            }
+        }
+
         //checking for prefix
         if(content.startsWith(Commands.prefix)){
             String command = content.substring(Commands.prefix.length());
@@ -71,18 +93,18 @@ public class BotFrame extends ListenerAdapter {
                         "```").complete();
             }
             if(command.startsWith(Commands.reminder)){
-                String reminder = command.substring(Commands.reminder.length());
-                if(!reminder.replaceAll(" ", "").equals("")){
-                    Reminder curReminder = new Reminder(msgCh.getName(),reminder,author.getName());
-                    try {
-                        reminderManager.addReminder(curReminder);
-                        msgCh.sendMessage("```Message Saved```").complete();
-                    } catch (IOException e) {
-                        msgCh.sendMessage("```An error has occured```").complete();
-                        e.printStackTrace();
+                if(curRemUser == null){
+                    String reminder = command.substring(Commands.reminder.length());
+                    if(!reminder.replaceAll(" ", "").equals("")){
+                        curReminder = new Reminder(msgCh.getName(),reminder,author.getName());
+                    } else {
+                        msgCh.sendMessage("```Please add a full message to add it to the reminders```").complete();
                     }
+                    msgCh.sendMessage("```Add a date (DD MM YY)```").complete();
+                    waitingForDate = true;
+                    curRemUser = author;
                 } else {
-                    msgCh.sendMessage("```Please add a full message to add it to the reminders```").complete();
+                    msgCh.sendMessage("`Please wait for the last user to create a reminder`").complete();
                 }
             }
             if(command.equalsIgnoreCase(Commands.reminders)){

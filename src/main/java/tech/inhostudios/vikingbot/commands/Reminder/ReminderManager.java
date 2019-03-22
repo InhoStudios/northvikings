@@ -5,6 +5,7 @@ import com.google.gson.stream.JsonWriter;
 import tech.inhostudios.vikingbot.Utils.GsonUtils;
 
 import java.io.*;
+import java.text.ParseException;
 import java.util.ArrayList;
 
 public class ReminderManager {
@@ -25,7 +26,7 @@ public class ReminderManager {
     public void refreshReminderJson(ArrayList<Reminder> refresh) throws IOException{
         JsonArray jsonArray = new JsonArray();
 
-        for(Reminder curRem : reminders){
+        for(Reminder curRem : refresh){
             jsonArray.add(curRem.getJsonObject());
         }
 
@@ -53,6 +54,10 @@ public class ReminderManager {
         return reminders;
     }
 
+    public Reminder getRecent(){
+        return reminders.get(reminders.size() - 1);
+    }
+
     public ArrayList<Reminder> initReminders() throws IOException {
         Gson gson = new Gson();
         File file = new File(filePath);
@@ -76,8 +81,15 @@ public class ReminderManager {
             String channel = element.getAsJsonPrimitive("channel").getAsString();
             String content = element.getAsJsonPrimitive("content").getAsString();
             String auth = element.getAsJsonPrimitive("user").getAsString();
+            String date = element.getAsJsonPrimitive("date").getAsString();
 
             Reminder reminder = new Reminder(channel,content,auth);
+            try {
+                reminder.parseDate(date);
+                System.out.println("Date read");
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
             rets.add(reminder);
         }
 
