@@ -2,10 +2,7 @@ package tech.inhostudios.vikingbot;
 
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.JDABuilder;
-import net.dv8tion.jda.core.entities.ChannelType;
-import net.dv8tion.jda.core.entities.Message;
-import net.dv8tion.jda.core.entities.MessageChannel;
-import net.dv8tion.jda.core.entities.User;
+import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import tech.inhostudios.vikingbot.commands.Reminder.Reminder;
@@ -18,6 +15,7 @@ import java.awt.*;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class BotFrame extends ListenerAdapter {
     private List messageList;
@@ -27,9 +25,14 @@ public class BotFrame extends ListenerAdapter {
     private JDA botJda;
     private ReminderManager reminderManager;
 
+    // reminder shit
     private boolean waitingForDate = false;
     private User curRemUser = null;
     private Reminder curReminder = null;
+
+    // reminder date management
+    private String pastDay = "";
+
     private final int maxMessages = 75;
 
     public BotFrame(int width, int height, String title) throws LoginException {
@@ -41,14 +44,16 @@ public class BotFrame extends ListenerAdapter {
         botFrame.setVisible(true);
         botFrame.setLocationRelativeTo(null);
 
+        reminderManager = new ReminderManager();
+
         botJda = new JDABuilder(Token.token).build();
         botJda.addEventListener(this);
-
-        reminderManager = new ReminderManager();
     }
 
     public void onMessageReceived(MessageReceivedEvent event){
         // handle command
+
+        MessageChannel bulletinChannel = botJda.getTextChannelById("546066386099634186");
 
         // message reception
         MessageChannel msgCh = event.getChannel();
@@ -56,34 +61,63 @@ public class BotFrame extends ListenerAdapter {
         User author = event.getAuthor();
         String content = msg.getContentRaw();
 
-        // for measuring ping
-        long time = System.currentTimeMillis();
 
+        // handle reminders
+        if(!reminderManager.getRecent().getFormat().format(new Date()).equals(pastDay) &&
+                !author.isBot() &&
+                !content.startsWith(Commands.prefix) &&
+                !waitingForDate) {
+            // send daily reminders
+            // clear message channel
+
+            refreshMessages(bulletinChannel);
+            pastDay = reminderManager.getRecent().getFormat().format(new Date());
+        }
+
+        // get date for the reminders
         if(waitingForDate && author.equals(curRemUser)){
             try {
                 curReminder.parseDate(content);
                 waitingForDate = false;
                 curRemUser = null;
             } catch (ParseException e) {
+                msgCh.sendMessage("```Date not set. Try again.```").complete();
                 e.printStackTrace();
-                msgCh.sendMessage("Date not set. Try again.");
+                return;
             }
             try {
+                // reminder not created properly? doesn't exist at this point
+
+                // testing reminder object
+                // gonna create a random reminder object and add that instead
+
+                System.out.println(curReminder.getJsonObject().toString());
                 reminderManager.addReminder(curReminder);
-                msgCh.sendMessage("```Message Saved```").complete();
+
+                // if it's a new reminder for today, post it in the channel
+                refreshMessages(bulletinChannel);
+                // save reminder
+                msgCh.sendMessage("```Reminder Saved```").complete();
             } catch (IOException e) {
-                msgCh.sendMessage("```An error has occured```").complete();
+                msgCh.sendMessage("```An error has occurred```").complete();
                 e.printStackTrace();
+            } catch (NullPointerException ne){
+                msgCh.sendMessage("```WHY THE FUCK IS IT BREAKING.```").complete();
+                ne.printStackTrace();
             }
         }
 
         //checking for prefix
         if(content.startsWith(Commands.prefix)){
             String command = content.substring(Commands.prefix.length());
+
+            // ping
             if(command.startsWith(Commands.ping)){
                 long ping = event.getJDA().getPing();
                 msgCh.sendMessage("```Pong! " + ping + "ms```").complete();
             }
+
+            // get all commands from help
             if(command.startsWith(Commands.help)){
                 msgCh.sendMessage("```Available Commands (using >): \n" +
                         ">" + Commands.forget + "[Index of reminder] - Removes the reminder from the list\n" +
@@ -92,6 +126,14 @@ public class BotFrame extends ListenerAdapter {
                         ">" + Commands.reminders + " - Returns all the current reminders for the channel\n" +
                         "```").complete();
             }
+
+            // bind the reminder channel
+            if(command.equalsIgnoreCase(Commands.refreshBulletin)){
+                // clear message channel
+                refreshMessages(bulletinChannel);
+            }
+
+            // add a reminder
             if(command.startsWith(Commands.reminder)){
                 if(curRemUser == null){
                     String reminder = command.substring(Commands.reminder.length());
@@ -107,13 +149,18 @@ public class BotFrame extends ListenerAdapter {
                     msgCh.sendMessage("`Please wait for the last user to create a reminder`").complete();
                 }
             }
+
+            // get all the reminders
             if(command.equalsIgnoreCase(Commands.reminders)){
                 msgCh.sendMessage("```" + reminderManager.getRemindersAsString() + "```").complete();
             }
+
+            // remove a reminder
             if(command.startsWith(Commands.forget)){
                 String index = command.substring(Commands.forget.length());
                 String result = reminderManager.removeFromReminders(index);
                 msgCh.sendMessage("```" + result + "```").complete();
+                refreshMessages(bulletinChannel);
             }
         }
 
@@ -133,6 +180,32 @@ public class BotFrame extends ListenerAdapter {
         }
     }
 
+    public void refreshMessages(MessageChannel bulletinChannel){
+        // clear message channel
+        boolean isWorking = true;
+
+        while(isWorking) {
+            java.util.List<Message> messages = bulletinChannel.getHistory().retrievePast(50).complete();
+
+            if (messages.isEmpty()) {
+                System.out.println("Done deleting: " + bulletinChannel);
+                isWorking = false;
+                return;
+            }
+
+            ((TextChannel) bulletinChannel).deleteMessages(messages).complete();
+        }
+
+        if(!isWorking){
+            Date today = new Date();
+            for(Reminder rem : reminderManager.getReminders()){
+                if(rem.getFormat().format(today).equalsIgnoreCase(rem.getJsonDate())){
+                    bulletinChannel.sendMessage("```" + rem.toString() + "```").complete();
+                }
+            }
+        }
+    }
+
     public void prune(String newMsg){
         ArrayList<String> temp = new ArrayList<String>();
         for(String message : messageList.getItems()){
@@ -144,5 +217,4 @@ public class BotFrame extends ListenerAdapter {
             messageList.add(message);
         }
     }
-
 }

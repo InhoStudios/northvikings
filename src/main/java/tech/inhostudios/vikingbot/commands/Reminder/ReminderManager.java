@@ -18,8 +18,11 @@ public class ReminderManager {
         try{
             reminders = initReminders();
         } catch(IOException e){
-            reminders = new ArrayList<>();
+            reminders = new ArrayList<Reminder>();
             e.printStackTrace();
+        } catch(NullPointerException ne){
+            reminders = new ArrayList<Reminder>();
+            ne.printStackTrace();
         }
     }
 
@@ -50,12 +53,16 @@ public class ReminderManager {
         reminders.remove(index);
     }
 
-    public ArrayList getReminders() {
+    public ArrayList<Reminder> getReminders() {
         return reminders;
     }
 
     public Reminder getRecent(){
-        return reminders.get(reminders.size() - 1);
+        if(reminders.size() >= 1){
+            return reminders.get(reminders.size() - 1);
+        } else {
+            return new Reminder();
+        }
     }
 
     public ArrayList<Reminder> initReminders() throws IOException {
@@ -73,24 +80,25 @@ public class ReminderManager {
         fr.close();
 
         JsonParser jsonParser = new JsonParser();
+        if(saves != null){
+            for(JsonElement jElement : saves){
+                String thisObj = jElement.toString();
+                JsonObject element = jsonParser.parse(thisObj).getAsJsonObject();
 
-        for(JsonElement jElement : saves){
-            String thisObj = jElement.toString();
-            JsonObject element = jsonParser.parse(thisObj).getAsJsonObject();
+                String channel = element.getAsJsonPrimitive("channel").getAsString();
+                String content = element.getAsJsonPrimitive("content").getAsString();
+                String auth = element.getAsJsonPrimitive("user").getAsString();
+                String date = element.getAsJsonPrimitive("date").getAsString();
 
-            String channel = element.getAsJsonPrimitive("channel").getAsString();
-            String content = element.getAsJsonPrimitive("content").getAsString();
-            String auth = element.getAsJsonPrimitive("user").getAsString();
-            String date = element.getAsJsonPrimitive("date").getAsString();
-
-            Reminder reminder = new Reminder(channel,content,auth);
-            try {
-                reminder.parseDate(date);
-                System.out.println("Date read");
-            } catch (ParseException e) {
-                e.printStackTrace();
+                Reminder reminder = new Reminder(channel,content,auth);
+                try {
+                    reminder.parseDate(date);
+                    System.out.println("Date read");
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+                rets.add(reminder);
             }
-            rets.add(reminder);
         }
 
         return rets;
@@ -102,11 +110,7 @@ public class ReminderManager {
         for(int i = 0; i < reminders.size(); i++){
             Reminder rem = reminders.get(i);
 
-            String channel = rem.getChannelName();
-            String content = rem.getSaveContent();
-            String auth = rem.getUser();
-
-            ret = ret + (i+1) + " [" + channel + "] " + auth + ": " + content + "\n";
+            ret = ret + (i+1) + " " + rem.toString() + "\n";
         }
         if(ret.equalsIgnoreCase(initial)){
             ret = "No reminders found";
